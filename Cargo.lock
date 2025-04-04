@@ -67,6 +67,8 @@ dependencies = [
  "bitcoin 0.29.2",
  "rand",
  "secp256k1 0.29.1",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
