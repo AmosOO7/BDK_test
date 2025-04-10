@@ -10,8 +10,23 @@ use secp256k1::Secp256k1;
 use std::{error::Error, str::FromStr};
 use std::process::Command;
 use serde_json::Value;
+use std::io::{self};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // User selects descriptor type
+    println!("Select descriptor type:");
+    println!("1. pk");
+    println!("2. pkh");
+    println!("3. wpkh");
+    println!("4. sh");
+    println!("5. combo");
+    println!("6. multi");
+    println!("7. wsh");
+
+    let mut descriptor_choice = String::new();
+    io::stdin().read_line(&mut descriptor_choice)?;
+    let descriptor_choice = descriptor_choice.trim();
+
     // Generate a 12-word mnemonic
     let mnemonic: GeneratedKey<Mnemonic, bdk_wallet::descriptor::Segwitv0> =
         Mnemonic::generate((WordCount::Words12, Language::English))
@@ -40,8 +55,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Convert to extended public key (xpub)
     let xpub = Xpub::from_priv(&secp, &derived_xprv);
 
-    // Construct the raw descriptor
-    let raw_descriptor = format!("wpkh([{}{}]{}/*)", fingerprint, "/84h/0h/0h", xpub);
+    // Construct the raw descriptor based on user's choice, including the path and signature
+    let raw_descriptor = match descriptor_choice {
+        "1" => format!("pk([{}{}]{}/*)", fingerprint, "/84h/0h/0h", xpub),
+        "2" => format!("pkh([{}{}]{}/*)", fingerprint, "/84h/0h/0h", xpub),
+        "3" => format!("wpkh([{}{}]{}/*)", fingerprint, "/84h/0h/0h", xpub),
+        "4" => format!("sh(wpkh([{}{}]{}/*))", fingerprint, "/84h/0h/0h", xpub),
+        "5" => format!("combo([{}{}]{}/*)", fingerprint, "/84h/0h/0h", xpub),
+        "6" => format!(
+            "multi(2, [{}{}]{}/*, [{}{}]{}/*)", 
+            fingerprint, "/84h/0h/0h", xpub, 
+            fingerprint, "/84h/0h/1h", xpub
+        ),
+        "7" => format!(
+            "wsh(multi(2, [{}{}]{}/*, [{}{}]{}/*))", 
+            fingerprint, "/84h/0h/0h", xpub, 
+            fingerprint, "/84h/0h/1h", xpub
+        ),
+        _ => return Err("Invalid descriptor type selected".into()),
+    };
 
     // Run `bitcoin-cli -testnet getdescriptorinfo` to get the descriptor information including checksum
     let output = Command::new("bitcoin-cli")
